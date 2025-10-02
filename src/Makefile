@@ -1,8 +1,8 @@
 CC ?= gcc
 
 PKGCONFIG = $(shell which pkg-config)
-CFLAGS = $(shell $(PKGCONFIG) --cflags gtk4)
-LIBS = $(shell $(PKGCONFIG) --libs gtk4)
+CFLAGS = $(shell $(PKGCONFIG) --cflags gtk4 sdl2 SDL2_mixer)
+LIBS = $(shell $(PKGCONFIG) --libs gtk4 sdl2 SDL2_mixer)
 
 SRC = main.c
 OBJS = $(SRC:.c=.o)

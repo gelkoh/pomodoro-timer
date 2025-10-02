@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "SDL_mixer.h"
+#include "SDL.h"
 
 enum Interval {
     POMODORO,
@@ -23,6 +25,8 @@ struct TimerData {
     int long_break_duration;
     enum Interval current_interval;
 };
+
+int play_alarm_clock_sound();
 
 void print_usage()
 {
@@ -117,17 +121,34 @@ void *threadproc(void *timer_data)
             sleep(1);
         }
 
+        printf("\e[2J\e[H");
+        printf("Time's up!");
+        fflush(stdout);
+
+        if (play_alarm_clock_sound() != 0)
+        {
+            printf("Warning: The alarm clock sound could not be played.");
+        }
+
+        sleep(11);
+
         if (pomodoro_count % 4 == 0)
         {
             td->current_interval = LONG_BREAK;
+            char *cmd = "notify-send \"Take a looong break now!\"";
+            system(cmd);
         }
         else if (td->current_interval == POMODORO)
         {
             td->current_interval = SHORT_BREAK;
+            char *cmd = "notify-send \"Take a short break now!\"";
+            system(cmd);
         }
         else
         {
             td->current_interval = POMODORO;
+            char *cmd = "notify-send \"Focus time!\"";
+            system(cmd);
         }
     }
 
@@ -141,8 +162,59 @@ void start_timer(struct TimerData *timer_data)
     pthread_join(tid, NULL);
 }
 
+int setup_sdl()
+{
+    SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
+
+    if (SDL_Init(SDL_INIT_AUDIO) < 0)
+    {
+        return -1;
+    }
+
+    if (Mix_OpenAudio(48000, AUDIO_S16SYS, 2, 4096) == -1)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+void cleanup_sdl()
+{
+    Mix_CloseAudio();
+    SDL_Quit();
+}
+
+int play_alarm_clock_sound()
+{
+    Mix_Chunk *alarm_clock = Mix_LoadWAV("../assets/541077__chelly01__bedside-clock-alarm.wav");
+
+    if (alarm_clock == NULL)
+    {
+        return -1;
+    }
+
+    if (Mix_PlayChannel(-1, alarm_clock, 0) == -1)
+    {
+        return -1;
+    }
+
+    while (Mix_Playing(-1) != 0);
+
+    Mix_FreeChunk(alarm_clock);
+
+    Mix_CloseAudio();
+
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
+    if (setup_sdl() != 0)
+    {
+        printf("Warning: SDL could not be set up properly.");
+    }
+
     struct UserInput user_input = get_user_input(argc, argv);
 
     struct TimerData timer_data = {
@@ -153,6 +225,8 @@ int main(int argc, char **argv)
     };
 
     start_timer(&timer_data);
+
+    cleanup_sdl();
 
     return 0;
 }
